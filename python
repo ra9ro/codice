@@ -1,0 +1,121 @@
+%reset -f
+import tensorflow as tf
+
+import os
+import math
+import numpy as np
+import skimage.io as io
+import matplotlib.pyplot as plt
+from skimage.transform import resize
+
+from tensorflow import keras
+from tensorflow.keras import layers
+from tensorflow.keras.preprocessing import image_dataset_from_directory
+from tensorflow.keras.preprocessing.image import load_img
+from tensorflow.keras.preprocessing.image import array_to_img
+from tensorflow.keras.preprocessing.image import img_to_array
+from tensorflow.keras.utils import image_dataset_from_directory
+
+# Carico le immagini dalle mie cartelle con "glob"
+
+from glob import glob
+
+# Carico il dataset di TRAINING
+list_train=glob("/content/drive/MyDrive/VSR/400X/Training/*.png")
+num_img_train=len(list_train)
+
+train_img=[]
+for index_train in range (num_img_train):
+  filename_train=list_train[index_train]
+  x_train=np.float32(io.imread(filename_train))/255
+  train_img.append(x_train)
+train_img=np.array(train_img)
+
+batched_train = tf.data.Dataset.from_tensor_slices(train_img).batch(40)
+
+# Carico il dataset di VALIDAZIONE
+list_val=glob("/content/drive/MyDrive/VSR/400X/Validazione/*.png")
+num_img_val=len(list_val)
+
+val_img=[]
+for index_val in range (num_img_val):
+  filename_val=list_val[index_val]
+  x_val=np.float32(io.imread(filename_val))/255
+  val_img.append(x_train)
+val_img=np.array(val_img)
+
+batched_val = tf.data.Dataset.from_tensor_slices(val_img).batch(40)
+
+# Carico il dataset di TEST
+list_test=glob("/content/drive/MyDrive/VSR/400X/Test/*.png")
+num_img_test=len(list_test)
+
+test_img=[]
+for index_test in range (num_img_test):
+  filename_test=list_test[index_test]
+  x_test=np.float32(io.imread(filename_test))/255
+  test_img.append(x_train)
+test_img=np.array(test_img)
+
+batched_test = tf.data.Dataset.from_tensor_slices(test_img).batch(40)
+
+# Funzione Estrazione blocchi per un batch di train
+
+def estrai_blocchi_train (batch):
+  
+    lista_blocchi_train=list()
+    for img in batch:
+        for k in range (0,img.shape[0]-128,64):
+            for j in range (0,img.shape[1]-128,64):
+                blocchi_train=img[k:(k+128),j:(j+128),:]
+                lista_blocchi_train.append(blocchi_train)  # con "append" inserisco i blocchi nella lista
+    blocchi_train= np.stack(lista_blocchi_train,0)
+      
+    return blocchi_train
+ 
+ # Estraggo per le immagini di train per un batch
+
+for batch in batched_train.take(1):
+    blocchi_train=estrai_blocchi_train(batch)     
+
+batch_blocchi_train=tf.data.Dataset.from_tensor_slices(blocchi_train).batch(60)
+
+# Funzione Estrazione blocchi per il set di validation
+
+def estrai_blocchi_val (batch):
+  
+    lista_blocchi_val=list()
+    for img in batch:
+        for k in range (0,img.shape[0]-128,64):
+            for j in range (0,img.shape[1]-128,64):
+                blocchi_val=img[k:(k+128),j:(j+128),:]
+                lista_blocchi_val.append(blocchi_val)  # con "append" inserisco i blocchi nella lista
+    blocchi_val= np.stack(lista_blocchi_val,0)
+      
+    return blocchi_train
+
+# Estraggo per le immagini di validation per un batch
+
+for batch in batched_val.take(1):
+    blocchi_val=estrai_blocchi_val(batch) 
+
+batch_blocchi_val=tf.data.Dataset.from_tensor_slices(blocchi_val).batch(60)
+
+blk_train_resize = tf.image.resize(blocchi_train, [64,64],method='bilinear')[:,:,:,:].numpy()
+batch_blk_train_resize = tf.data.Dataset.from_tensor_slices(blk_train_resize).batch(60) 
+blk_val_resize = tf.image.resize(blocchi_val, [64,64],method='bilinear')[:,:,:,:].numpy()
+batch_blk_val_resize = tf.data.Dataset.from_tensor_slices(blk_val_resize).batch(60) 
+
+# Definizione architettura di rete
+
+from tensorflow.nn import depth_to_space
+rete = keras.models.Sequential()
+rete.add(layers.Conv2D(64,(5,5), padding='same', activation='relu', kernel_initializer='Orthogonal', 
+                       input_shape=(64,64,3)))
+rete.add(layers.Conv2D(64,(3,3), padding='same', activation='relu', kernel_initializer='Orthogonal'))
+rete.add(layers.Conv2D(32,(3,3), padding='same', activation='relu', kernel_initializer='Orthogonal'))
+rete.add(layers.Conv2D(12,(4,4), padding='same', activation='relu', kernel_initializer='Orthogonal'))
+rete.add(layers.Lambda(lambda x: depth_to_space(x, 2)))
+
+rete.summary()
+
