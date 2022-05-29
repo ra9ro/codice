@@ -33,6 +33,7 @@ train_img=np.array(train_img)
 
 batched_train = tf.data.Dataset.from_tensor_slices(train_img).batch(40)
 
+
 # Carico il dataset di VALIDAZIONE
 list_val=glob("/content/drive/MyDrive/VSR/400X/Validazione/*.png")
 num_img_val=len(list_val)
@@ -119,3 +120,7 @@ rete.add(layers.Lambda(lambda x: depth_to_space(x, 2)))
 
 rete.summary()
 
+
+rete.compile(loss = keras.losses.mean_squared_error,
+             optimizer = keras.optimizers.Nadam(learning_rate=0.001))
+rete.train_on_batch(input_train,out_train)
