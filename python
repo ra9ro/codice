@@ -120,6 +120,19 @@ rete.add(layers.Lambda(lambda x: depth_to_space(x, 2)))
 
 rete.summary()
 
+input_train=[]
+for idx_train, x_train in enumerate(batch_blk_train_resize):
+    input_train=np.array(x_train)
+input_val=[]
+for idx_val, x_val in enumerate(batch_blk_val_resize):
+    input_val=np.array(x_val)
+    
+out_train=[]
+for idx_train_resize, x_train_resize in enumerate(batch_blocchi_train):
+    out_train=np.array(x_train_resize)
+out_val=[]
+for idx_val_resize, x_val_resize in enumerate(batch_blocchi_val):
+    out_val=np.array(x_val_resize)
 
 rete.compile(loss = keras.losses.mean_squared_error,
              optimizer = keras.optimizers.Nadam(learning_rate=0.001))
